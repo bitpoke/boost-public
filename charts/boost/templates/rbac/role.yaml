@@ -1,0 +1,172 @@
+{{- if .Values.rbac.enable }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+  name: boost-manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - namespaces
+  - persistentvolumeclaims
+  - secrets
+  - serviceaccounts
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps/finalizers
+  - secrets/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - configmaps/status
+  - secrets/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - boost.bitpoke.io
+  resources:
+  - mediastorages
+  - mysqldatabases
+  - mysqlschemas
+  - mysqlusers
+  - podplacements
+  - podresources
+  - releasechannels
+  - users
+  - wordpresses
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - boost.bitpoke.io
+  resources:
+  - mediastorages/finalizers
+  - mysqldatabases/finalizers
+  - mysqlschemas/finalizers
+  - mysqlusers/finalizers
+  - podplacements/finalizers
+  - podresources/finalizers
+  - releasechannels/finalizers
+  - users/finalizers
+  - wordpresses/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - boost.bitpoke.io
+  resources:
+  - mediastorages/status
+  - mysqldatabases/status
+  - mysqlschemas/status
+  - mysqlusers/status
+  - podplacements/status
+  - podresources/status
+  - releasechannels/status
+  - users/status
+  - wordpresses/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - cert-manager.io
+  resources:
+  - certificates
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cert-manager.io
+  resources:
+  - certificates/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - cert-manager.io
+  resources:
+  - certificates/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - gateways
+  - httproutes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - gateways/finalizers
+  - httproutes/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - gateways/status
+  - httproutes/status
+  verbs:
+  - get
+  - patch
+  - update
+{{- end -}}

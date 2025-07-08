@@ -1,0 +1,26 @@
+apiVersion: app.k8s.io/v1beta1
+kind: Application
+metadata:
+  name: {{ include "chart.fullname" . }}
+  namespace: "{{ .Release.Namespace }}"
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+  annotations:
+    marketplace.cloud.google.com/deploy-info: '{"partner_id": "bitpoke-public", "product_id": "boost", "partner_name": "Bitpoke"}'
+spec:
+  descriptor:
+    type: Boost
+    version: {{ .Chart.AppVersion | quote }}
+  selector:
+    matchLabels:
+      {{- include "chart.selectorLabels" . | nindent 6 }}
+  addOwnerRef: true
+  componentKinds:
+  - group: core
+    kind: ServiceAccount
+  - group: core
+    kind: Secret
+  - group: core
+    kind: Service
+  - group: apps
+    kind: Deployment
