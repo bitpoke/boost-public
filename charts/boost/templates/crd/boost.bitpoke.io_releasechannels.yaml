@@ -1,0 +1,98 @@
+{{- if .Values.crd.enable }}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+  annotations:
+    {{- if .Values.crd.keep }}
+    "helm.sh/resource-policy": keep
+    {{- end }}
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: releasechannels.boost.bitpoke.io
+spec:
+  group: boost.bitpoke.io
+  names:
+    kind: ReleaseChannel
+    listKind: ReleaseChannelList
+    plural: releasechannels
+    singular: releasechannel
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.image
+      name: Image
+      type: string
+    - jsonPath: .status.helmChart
+      name: Chart
+      type: string
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: ReleaseChannel is the Schema for the releasechannels API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ReleaseChannelSpec defines the desired state of ReleaseChannel.
+            properties:
+              helmChart:
+                description: HelmChart defines the desired state of the HelmChart
+                  for the ReleaseChannel.
+                properties:
+                  name:
+                    type: string
+                  repository:
+                    type: string
+                  version:
+                    type: string
+                required:
+                - name
+                - repository
+                - version
+                type: object
+              image:
+                properties:
+                  repository:
+                    type: string
+                  tag:
+                    type: string
+                required:
+                - repository
+                - tag
+                type: object
+              values:
+                description: HelmValues allows for additional Helm values to be specified.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+            type: object
+          status:
+            description: ReleaseChannelStatus defines the observed state of ReleaseChannel.
+            properties:
+              helmChart:
+                type: string
+              image:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+{{- end -}}
