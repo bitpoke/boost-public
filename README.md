@@ -438,11 +438,11 @@ metadata:
   name: stable
   namespace: boost-global
   annotations:
-    boost.bitpoke.io/display-name: "Official (6.8.1, no Cloud Storage integration)"
+    boost.bitpoke.io/display-name: "Official (6.8.2, no Cloud Storage integration)"
 spec:
   image:
     repository: docker.io/library/wordpress
-    tag: 6.8.1
+    tag: 6.8.2
 ---
 apiVersion: boost.bitpoke.io/v1
 kind: ReleaseChannel
@@ -450,11 +450,11 @@ metadata:
   name: stable
   namespace: boost-global
   annotations:
-    boost.bitpoke.io/display-name: "Bitpoke Runtime (6.8.1)"
+    boost.bitpoke.io/display-name: "Bitpoke Runtime (6.8.2)"
 spec:
   image:
-    repository: docker.io/bitpoke/wordpress-runtimes
-    tag: "6.8.1"
+    repository: docker.io/bitpoke/wordpress-runtime
+    tag: "6.8.2"
   values:
     env:
       - name: PORT
@@ -462,11 +462,10 @@ spec:
     wordpress:
       documentRoot: "/app/web"
       useExistingDocumentRoot: true
-    primary:
-      cli:
-        image:
-          repository: docker.io/bitpoke/wordpress-runtimes
-          tag: "6.8.1"
+    cli:
+      image:
+        repository: docker.io/bitpoke/wordpress-runtime
+        tag: "6.8.2"
 ```
 
 #### Create a Pod Placement and Pod Resources template
