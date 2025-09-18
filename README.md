@@ -351,6 +351,20 @@ The application is now available under the selected domain!
 
 ## Post-installation steps
 
+### Create the global namespace
+
+Boost uses a dedicated namespace for global resources. You can create it with the following command:
+
+```sh
+kubectl create namespace boost-global
+```
+
+#### Cereate a Certificate Map for Gateway resource
+
+```sh
+gcloud certificate-manager maps create --location=global boost-cert-map
+```
+
 ### Add Google Cloud IAM permissions
 
 #### Add permissions to manage certificates
@@ -367,260 +381,24 @@ gcloud projects add-iam-policy-binding ${PROJECT_ID} \
     --member "principal://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${PROJECT_ID}.svc.id.goog/subject/ns/${NAMESPACE}/sa/${APP_INSTANCE_NAME}"
 ```
 
+#### Add permissions to manage Cloud SQL instances
+```sh
+gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+    --role roles/cloudsql.client \
+    --member "principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${PROJECT_ID}.svc.id.goog/kubernetes.cluster/https://container.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/clusters/${CLUSTER}"
+```
 
-### Create the global namespace
+#### Add permissions to access Cloud Storage Bucket
+```sh
+gcloud storage buckets add-iam-policy-binding gs://${BUCKET} \
+    --role roles/storage.objectUser \
+    --member "principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${PROJECT_ID}.svc.id.goog/kubernetes.cluster/https://container.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/clusters/${CLUSTER}"
+````
 
-Boost uses a dedicated namespace for global resources. You can create it with the following command:
+### Seed the application with global resources
 
 ```sh
-kubectl create namespace boost-global
+./seed.sh > seed_manifest.yaml
+kubectl apply -f seed_manifest.yaml
 ```
 
-### Install global resources
-
-Bitpoke Boost, make avaialbe a set of global resources that can be used by the managed WordPress websites.
-
-#### Cereate a Gateway
-
-WordPress ingress is doe trough the kubernetes Gateway resource. Here an example
-Gateway to be used by Boost.
-
-Before creating the Gateway, you need to create a Certificate Map resource in
-Google Cloud Certificate Manager.
-
-```sh
-gcloud certificate-manager maps create --location=global boost-cert-map
-```
-
-Then, you can create the Gateway resource:
-
-```yaml
-apiVersion: gateway.networking.k8s.io/v1
-kind: Gateway
-metadata:
-  annotations:
-    networking.gke.io/certmap: boost-cert-map
-  name: gateway-1
-  namespace: boost-global
-spec:
-  gatewayClassName: gke-l7-global-external-managed
-  listeners:
-    - allowedRoutes:
-        namespaces:
-          from: Selector
-          selector:
-            matchLabels:
-              boost.bitpoke.io/project: "true"
-      name: http
-      port: 80
-      protocol: HTTP
-    - allowedRoutes:
-        namespaces:
-          from: Selector
-          selector:
-            matchLabels:
-              boost.bitpoke.io/project: "true"
-      name: https
-      port: 443
-      protocol: HTTPS
-```
-
-#### Create a Release Channel
-
-Release channels are used to manage the deployed version of the WordPress
-websites (for example stable/beta/alpha).
-
-```yaml
----
-apiVersion: boost.bitpoke.io/v1
-kind: ReleaseChannel
-metadata:
-  name: stable
-  namespace: boost-global
-  annotations:
-    boost.bitpoke.io/display-name: "Official (6.8.2, no Cloud Storage integration)"
-spec:
-  image:
-    repository: docker.io/library/wordpress
-    tag: 6.8.2
----
-apiVersion: boost.bitpoke.io/v1
-kind: ReleaseChannel
-metadata:
-  name: stable
-  namespace: boost-global
-  annotations:
-    boost.bitpoke.io/display-name: "Bitpoke Runtime (6.8.2)"
-spec:
-  image:
-    repository: docker.io/bitpoke/wordpress-runtime
-    tag: "6.8.2"
-  values:
-    env:
-      - name: PORT
-        value: "80"
-    wordpress:
-      documentRoot: "/app/web"
-      useExistingDocumentRoot: true
-    cli:
-      image:
-        repository: docker.io/bitpoke/wordpress-runtime
-        tag: "6.8.2"
-```
-
-#### Create a Pod Placement and Pod Resources template
-
-```yaml
----
-apiVersion: boost.bitpoke.io/v1
-kind: PodPlacement
-metadata:
-  name: default
-  namespace: boost-global
-  annotations:
-    boost.bitpoke.io/display-name: "Default (any node)"
----
-apiVersion: boost.bitpoke.io/v1
-kind: PodPlacement
-metadata:
-  name: spot
-  namespace: boost-global
-  annotations:
-    boost.bitpoke.io/display-name: "Spot (spot nodes only)"
-spec:
-  nodeSelector:
-    cloud.google.com/gke-spot: "true"
----
-apiVersion: boost.bitpoke.io/v1
-kind: PodResources
-metadata:
-  name: regular-1
-  namespace: boost-global
-  annotations:
-    boost.bitpoke.io/display-name: "Regular (1 CPU, 2Gi)"
-spec:
-  resources:
-    requests:
-      cpu: 1000m
-      memory: 2Gi
----
-apiVersion: boost.bitpoke.io/v1
-kind: PodResources
-metadata:
-  name: small-1
-  namespace: boost-global
-  annotations:
-    boost.bitpoke.io/display-name: "Small (250m CPU, 512Mi)"
-spec:
-  resources:
-    requests:
-      cpu: 250m
-      memory: 512Mi
-```
-
-#### Provision a MySQL database
-
-Enable service networking API in your project to allow connecting to Google Cloud SQL:
-
-```sh
-gcloud services enable servicenetworking.googleapis.com --project=${PROJECT_NUMBER}
-
-gcloud compute addresses create psa-range \
-    --global \
-    --purpose=VPC_PEERING \
-    --prefix-length=24 \
-    --description="VPC private service access" \
-    --network=default
-
-gcloud services vpc-peerings connect \
-    --service=servicenetworking.googleapis.com \
-    --ranges=psa-range \
-    --network=default
-```
-
-In order to provision MySQL servers for WordPress sites to use, you must first
-create them in Google Cloud.
-
-```sh
-gcloud sql instances create testdb-1 \
-    --tier db-g1-small --region="$REGION" \
-    --root-password="MYSQL_ROOT_PASSWORD" \
-    --ssl-mode=ALLOW_UNENCRYPTED_AND_ENCRYPTED \
-    --network="projects/${PROJECT_ID}/global/networks/default" \
-    --no-assign-ip
-```
-
-Then you need to provide the root password (which is used for schema and user provisioning)
-as a secret:
-
-```sh
-kubectl create secret generic testdb-1-creds \
-    --from-literal=root-password=MYSQL_ROOT_PASSWORD \
-    --namespace=boost-global
-```
-
-Finally, you can create the MySQL instance resource:
-```yaml
-apiVersion: boost.bitpoke.io/v1
-kind: MySQLDatabase
-metadata:
-  name: testdb-1
-  namespace: boost-global
-  annotations:
-    boost.bitpoke.io/display-name: "testdb-1"
-spec:
-  address:
-    value: PRIVATE_IP:3306
-  rootPassword:
-    valueFrom:
-      secretKeyRef:
-        name: testdb-1-creds
-        key: root-password
-```
-
-#### Provision a Google Cloud Storage bucket
-
-For using Google Cloud Storage as a persistent storage for WordPress sites, you need to create
-a bucket and make it available to Boost.
-
-```sh
-export BUCKET=demo
-gcloud storage buckets create -b --location="$REGION" gs://$BUCKET
-```
-
-```sh
-cat <<EOF | kubectl apply -f -
-apiVersion: boost.bitpoke.io/v1
-kind: MediaStorage
-metadata:
-  name: $BUCKET
-  namespace: boost-global
-  annotations:
-    boost.bitpoke.io/display-name: "gs://$BUCKET (project and site)"
-spec:
-  gcs:
-    bucket: $BUCKET
-    # a custom path prefix within the bucket
-    # pathPrefix: ""
-
-  # the subdirectory mode
-  # can be:
-  # - projectAndSite: files will be saved in gs://test-bucket-1-wmx48c2/PREFIX/BOOST_PROJECT_NAME/BOOST_SITE_NAME
-  # - siteOnly: files will be saved in gs://test-bucket-1-wmx48c2/PREFIX/BOOST_SITE_NAME
-  # - rootOnly: files will be saved in gs://test-bucket-1-wmx48c2/PREFIX
-  # - userProvided: files will be saved in gs://test-bucket-1-wmx48c2/PREFIX/USER_DEFINED_PATH
-  #   each site will have its own USER_DEFINED_PATH
-  subdirectory: projectAndSite
-EOF
-```
-
-In order to provide access to the bucket for the sites, you can either set a secret trough environment variables,
-or use Worklod Identity Federation to access the bucket without secrets. With [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/concepts/workload-identity#kubernetes-resources-iam-policies)
-you can either give access to a specific service account, namespace or entire cluster to the bucket.
-
-For example to give access to the entire cluster, you can use the following command:
-```sh
-    gcloud storage buckets add-iam-policy-binding gs://${BUCKET} \
-        --role roles/storage.objectUser \
-        --member "principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${PROJECT_ID}.svc.id.goog/kubernetes.cluster/https://container.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/clusters/${CLUSTER}"
-```

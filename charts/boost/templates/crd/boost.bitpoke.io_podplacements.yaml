@@ -2951,6 +2951,14 @@ spec:
                 type: object
               priorityClassName:
                 type: string
+              storageClassName:
+                description: |-
+                  StorageClass is the name of the storage class to use for the persistent volume backing WordPress
+                  plugins and themes on the primary pod.
+                type: string
+                x-kubernetes-validations:
+                - message: storageClassName is immutable
+                  rule: self == oldSelf
               tolerations:
                 description: If specified, the pod's tolerations.
                 items:
@@ -2991,6 +2999,8 @@ spec:
                   type: object
                 type: array
                 x-kubernetes-list-type: atomic
+            required:
+            - storageClassName
             type: object
           status:
             description: PodPlacementStatus defines the observed state of PodPlacement.

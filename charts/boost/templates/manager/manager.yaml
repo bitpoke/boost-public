@@ -34,6 +34,9 @@ spec:
             {{- if .Values.wpInvokerImage }}
             - --wp-invoker-image={{ .Values.wpInvokerImage }}
             {{- end }}
+            {{- if .Values.cloudSQLProxyImage }}
+            - --cloudsql-proxy-image={{ .Values.cloudSQLProxyImage }}
+            {{- end }}
           command:
             - /manager
           image: {{ .Values.controllerManager.container.image.repository }}:{{ .Values.controllerManager.container.image.tag }}

@@ -1,5 +1,6 @@
 global:
-  isGoogleCloudMarketplaceInstall: true
+  isGoogleCloudMarketplaceInstall: false
+
 # [MANAGER]: Manager Deployment Configurations
 controllerManager:
   replicas: 1
@@ -11,9 +12,8 @@ controllerManager:
       tag: latest
     args:
       - "--leader-elect"
+      - "--metrics-bind-address=:8443"
       - "--health-probe-bind-address=:8081"
-      - "--zap-encoder=json"
-      - "--values-file=/var/run/secrets/boost.bitpoke.io/values.yaml"
     resources:
       limits:
         cpu: 500m
@@ -46,35 +46,45 @@ controllerManager:
   serviceAccountName: boost-controller-manager
   serviceAccount:
     annotations: {}
+
 # This option allows you to set environment variables for the controller manager.
 # These variables are written to a secret that is mounted into the contoller manager.
 env: {}
+
 wpInvokerImage: ""
+cloudSQLProxyImage: ""
+
 # [RBAC]: To enable RBAC (Permissions) configurations
 rbac:
-  enable: false
+  enable: true
+
 # [CRDs]: To enable the CRDs
 crd:
   # This option determines whether the CRDs are included
   # in the installation process.
   enable: true
+
   # Enabling this option adds the "helm.sh/resource-policy": keep
   # annotation to the CRD, ensuring it remains installed even when
   # the Helm release is uninstalled.
   # NOTE: Removing the CRDs will also remove all cert-manager CR(s)
   # (Certificates, Issuers, ...) due to garbage collection.
   keep: true
+
 # [METRICS]: Set to true to generate manifests for exporting metrics.
 # To disable metrics export set false, and ensure that the
 # ControllerManager argument "--metrics-bind-address=:8443" is removed.
 metrics:
-  enable: false
+  enable: true
+
 # [PROMETHEUS]: To enable a ServiceMonitor to export metrics to Prometheus set true
 prometheus:
   enable: false
+
 # [CERT-MANAGER]: To enable cert-manager injection to webhooks set true
 certmanager:
   enable: false
+
 # [NETWORK POLICIES]: To enable NetworkPolicies set true
 networkPolicy:
   enable: false

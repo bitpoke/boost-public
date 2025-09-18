@@ -1,0 +1,10 @@
+{{- if .Values.global.isGoogleCloudMarketplaceInstall -}}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: boost-global
+  labels:
+    app.kubernetes.io/name: {{ include "chart.name" . }}
+    app.kubernetes.io/managed-by: "GoogleCloudMarketplace"
+    boost.bitpoke.io/project: global-namespace
+{{- end -}}

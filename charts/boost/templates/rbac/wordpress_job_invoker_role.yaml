@@ -1,4 +1,4 @@
-{{- if .Values.rbac.enable }}
+{{- if (or .Values.rbac.create .Values.global.isGoogleCloudMarketplaceInstall) -}}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
