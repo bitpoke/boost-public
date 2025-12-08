@@ -8,15 +8,14 @@ Bitpoke Boost. [Learn more](https://www.bitpoke.io/)
 > The recommended way to install Boost is through the [Google Cloud Marketplace](https://console.cloud.google.com/marketplace/details/bitpoke-public/boost).
 > If you want to install Boost manually, you can do so by following the next steps.
 
-## Installation
+## Installation prerequisites
 
 You can use [Cloud Shell](https://cloud.google.com/shell/) or a local workstation to follow the steps below.
 
 [![Open in Cloud Shell](http://gstatic.com/cloudssh/images/open-btn.svg)](https://console.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/bitpoke/boost-public&cloudshell_open_in_editor=README.md&cloudshell_tutorial=README.md)
 
-### Prerequisites
 
-#### Set up command-line tools
+### Set up command-line tools
 
 You'll need the following tools in your development environment. If you are using
 Cloud Shell, then `gcloud`, `kubectl`, Docker, and Git are installed in your
@@ -42,7 +41,7 @@ Configure `gcloud` as a Docker credential helper:
 gcloud auth configure-docker
 ```
 
-#### Create or reuse a Google Kubernetes Engine (GKE) cluster
+### Create or reuse a Google Kubernetes Engine (GKE) cluster
 
 Set cluster parameters:
 
@@ -67,7 +66,7 @@ Configure `kubectl` to connect to the new cluster:
 gcloud container clusters get-credentials "$CLUSTER" --project "$PROJECT_ID" --region "$REGION"
 ```
 
-#### Clone this repo
+### Clone this repo
 
 Clone this repo and the associated tools repo:
 
@@ -75,7 +74,7 @@ Clone this repo and the associated tools repo:
 git clone https://github.com/bitpoke/boost-public.git
 ```
 
-#### Install the Application resource definition
+### Install the Application resource definition
 
 An Application resource is a collection of individual Kubernetes components, such
 as Services, StatefulSets, and so on, that you can manage as a group.
@@ -94,17 +93,17 @@ The Application resource is defined by the
 community. The source code can be found on
 [github.com/kubernetes-sigs/application](https://github.com/kubernetes-sigs/application).
 
-#### Configure OpenID Connect
+## Configure OpenID Connect
 
 Boost uses OpenID Connect for authentication. You can use any OIDC provider (like Auth0 or Google Cloud).
 
 To configure Google Cloud, you can follow the tutorial at: https://www.bitpoke.io/docs/app-for-wordpress/installation/authentication/
 
-### Install the app
+## Install the app
 
 If you are using the visual install interface from the Google Cloud Marketplace, you can skip now to [Expose the application to the internet](#expose-the-application-to-the-internet)
 
-#### Configure the app with environment variables
+### Configure the app with environment variables
 
 Set up the image tag:
 
@@ -149,14 +148,14 @@ export OIDC_CLIENT_SECRET=
 export OIDC_REDIRECT_URL= # https://example.com/auth/callback
 ```
 
-#### Install Custom Resource Definitions (CRDs)
+### Install Custom Resource Definitions (CRDs)
 
 ```sh
 helm template charts/boost --set 'crd.enable=true' -s 'templates/crd/*' | kubectl apply -f-
 ```
 
 
-#### Create the application Service Account
+### Create the application Service Account
 
 Create the Application default roles:
 ```sh
@@ -188,7 +187,7 @@ helm template -n "$NAMESPACE" "$APP_INSTANCE_NAME" charts/boost \
 kubectl apply -f-
 ```
 
-#### Expand the manifest template
+### Expand the manifest template
 
 Use `helm template` to expand the template. We recommend that you save the
 expanded manifest file for future updates to your app.
@@ -212,7 +211,7 @@ helm template -n "$NAMESPACE" "$APP_INSTANCE_NAME" charts/boost \
     > "${APP_INSTANCE_NAME}_manifest.yaml"
 ```
 
-#### Apply the manifest to your Kubernetes cluster
+### Apply the manifest to your Kubernetes cluster
 
 To apply the manifest to your Kubernetes cluster, use `kubectl`:
 
@@ -220,7 +219,7 @@ To apply the manifest to your Kubernetes cluster, use `kubectl`:
 kubectl apply -f "${APP_INSTANCE_NAME}_manifest.yaml" --namespace "${NAMESPACE}"
 ```
 
-#### View the app in the Cloud Console
+### View the app in the Cloud Console
 
 To get the Cloud Console URL for your app, run the following command:
 
@@ -230,7 +229,7 @@ echo "https://console.cloud.google.com/kubernetes/application/${REGION}/${CLUSTE
 
 To view the app, open the URL in your browser.
 
-### Expose the application to the internet
+## Expose the application to the internet
 
 To expose the application to the internet, you can use the [Gateway](https://gateway-api.sigs.k8s.io/) resource. Or alternatively, you could use an Ingress resource, but this is not documented here.
 Now, you can run the ./install.sh script:
@@ -254,6 +253,6 @@ kubectl describe httproute -n ${NAMESPACE} ${APP_INSTANCE_NAME}
 ./seed.sh > seed_manifest.yaml
 kubectl apply -f seed_manifest.yaml
 ```
-## Enjoy!
+### Enjoy!
 
 The application is now available under the selected domain!
