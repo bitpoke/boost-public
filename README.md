@@ -5,7 +5,7 @@
 Bitpoke Boost. [Learn more](https://www.bitpoke.io/)
 
 > [!NOTE]
-> The recommanded way to install Boost is through the [Google Cloud Marketplace](https://console.cloud.google.com/marketplace/details/bitpoke-public/boost).
+> The recommended way to install Boost is through the [Google Cloud Marketplace](https://console.cloud.google.com/marketplace/details/bitpoke-public/boost).
 > If you want to install Boost manually, you can do so by following the next steps.
 
 ## Installation
@@ -102,6 +102,8 @@ To configure Google Cloud, you can follow the tutorial at: https://www.bitpoke.i
 
 ### Install the app
 
+If you are using the visual install interface from the Google Cloud Marketplace, you can skip now to [Expose the application to the internet](#expose-the-application-to-the-internet)
+
 #### Configure the app with environment variables
 
 Set up the image tag:
@@ -110,7 +112,7 @@ It is advised to use stable image reference which you can find on [Marketplace C
 Example:
 
 ```sh
-export TAG="1.0.0"
+export TAG="0.1.9"
 ```
 
 Alternatively you can use short tag which points to the latest image for selected version.
@@ -119,7 +121,7 @@ Alternatively you can use short tag which points to the latest image for selecte
 > This tag is not stable and referenced image might change over time.
 
 ```sh
-export TAG="1.0"
+export TAG="0.1"
 ```
 
 Configure the image registry:
@@ -230,113 +232,11 @@ To view the app, open the URL in your browser.
 
 ### Expose the application to the internet
 
-To expose the application to the internet, you can either use an Ingress or the new [Gateway](https://gateway-api.sigs.k8s.io/) resource.
-
-#### Create the gateway resource
-
-First, createh the Google Cloud Certificate Map resource to manage TLS certificates:
-```sh
-gcloud certificate-manager maps create --location=global ${APP_INSTANCE_NAME}-certmap
-```
-
-Then, create the Kubernetes Gateway resource:
-```terminal
-kubectl apply -f- <<EOF
-apiVersion: gateway.networking.k8s.io/v1
-kind: Gateway
-metadata:
-  annotations:
-    networking.gke.io/certmap: ${APP_INSTANCE_NAME}-certmap
-  name: ${APP_INSTANCE_NAME}
-  namespace: ${NAMESPACE}
-spec:
-  gatewayClassName: gke-l7-global-external-managed
-  listeners:
-    - allowedRoutes:
-        namespaces:
-          from: All
-      name: http
-      port: 80
-      protocol: HTTP
-    - allowedRoutes:
-        namespaces:
-          from: All
-      name: https
-      port: 443
-      protocol: HTTPS
-EOF
-```
-
-Wait for the gateway to be programmed:
+To expose the application to the internet, you can use the [Gateway](https://gateway-api.sigs.k8s.io/) resource. Or alternatively, you could use an Ingress resource, but this is not documented here.
+Now, you can run the ./install.sh script:
 
 ```sh
-kubectl -n ${NAMESPACE} wait --for=condition=Programmed gateway/${APP_INSTANCE_NAME} --timeout=600s
-```
-
-Note the gateway IP address:
-
-```sh
-kubectl -n ${NAMESPACE} get gateway/${APP_INSTANCE_NAME} -o jsonpath='{range .status.addresses[*]}{.value}{"\n"}{end}'
-```
-
-#### Update DNS records
-
-Update the DNS records to point to the Gateway IP.
-
-Export the application domain name:
-
-```sh
-export APP_DOMAIN= # example.com (without http/https prefix)
-```
-
-#### Create a Certificate and add it to the Certificate Map
-
-```sh
-gcloud certificate-manager certificates create "$APP_INSTANCE_NAME" --domains="$APP_DOMAIN"
-gcloud certificate-manager maps entries create "$APP_INSTANCE_NAME" \
-    --location=global --map="${APP_INSTANCE_NAME}-certmap" \
-    --hostname="$APP_DOMAIN" --certificates="$APP_INSTANCE_NAME"
-```
-
-Wait for the certificate to be ready (this may take a few minutes, up to half an hour):
-
-```sh
-watch gcloud certificate-manager certificates describe "$APP_INSTANCE_NAME"
-```
-
-#### Route the application through the gateway
-
-```terminal
-kubectl apply -f- <<EOF
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-  labels:
-    app.kubernetes.io/name: boost
-    app.kubernetes.io/instance: ${APP_INSTANCE_NAME}
-    control-plane: controller-manager
-  name: ${APP_INSTANCE_NAME}
-  namespace: ${NAMESPACE}
-spec:
-  hostnames:
-  - ${APP_DOMAIN}
-  parentRefs:
-  - group: gateway.networking.k8s.io
-    kind: Gateway
-    name: ${APP_INSTANCE_NAME}
-    namespace: ${NAMESPACE}
-  rules:
-  - backendRefs:
-    - group: ""
-      kind: Service
-      name: ${APP_INSTANCE_NAME}
-      port: 80
-      weight: 1
-    matches:
-    - path:
-        type: PathPrefix
-        value: /
-EOF
+./install.sh
 ```
 
 Wait until the HTTPRoute is Accepted and ready to route traffic.
@@ -345,55 +245,8 @@ Wait until the HTTPRoute is Accepted and ready to route traffic.
 kubectl describe httproute -n ${NAMESPACE} ${APP_INSTANCE_NAME}
 ```
 
-### Enjoy!
-
-The application is now available under the selected domain!
-
 ## Post-installation steps
 
-### Create the global namespace
-
-Boost uses a dedicated namespace for global resources. You can create it with the following command:
-
-```sh
-kubectl create namespace boost-global
-```
-
-#### Cereate a Certificate Map for Gateway resource
-
-```sh
-gcloud certificate-manager maps create --location=global boost-cert-map
-```
-
-### Add Google Cloud IAM permissions
-
-#### Add permissions to manage certificates
-
-In order to manage certificates, Bitpoke Boost needs the `roles/certificatemanager.owner` role to the service
-account used by the application.
-
-To grant it using Workload Identity, you can use the following command:
-```sh
-export PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
-
-gcloud projects add-iam-policy-binding ${PROJECT_ID} \
-    --role roles/certificatemanager.owner \
-    --member "principal://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${PROJECT_ID}.svc.id.goog/subject/ns/${NAMESPACE}/sa/${APP_INSTANCE_NAME}"
-```
-
-#### Add permissions to manage Cloud SQL instances
-```sh
-gcloud projects add-iam-policy-binding ${PROJECT_ID} \
-    --role roles/cloudsql.client \
-    --member "principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${PROJECT_ID}.svc.id.goog/kubernetes.cluster/https://container.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/clusters/${CLUSTER}"
-```
-
-#### Add permissions to access Cloud Storage Bucket
-```sh
-gcloud storage buckets add-iam-policy-binding gs://${BUCKET} \
-    --role roles/storage.objectUser \
-    --member "principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${PROJECT_ID}.svc.id.goog/kubernetes.cluster/https://container.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/clusters/${CLUSTER}"
-````
 
 ### Seed the application with global resources
 
@@ -401,4 +254,6 @@ gcloud storage buckets add-iam-policy-binding gs://${BUCKET} \
 ./seed.sh > seed_manifest.yaml
 kubectl apply -f seed_manifest.yaml
 ```
+## Enjoy!
 
+The application is now available under the selected domain!
