@@ -229,6 +229,10 @@ echo "https://console.cloud.google.com/kubernetes/application/${REGION}/${CLUSTE
 
 To view the app, open the URL in your browser.
 
+## Create the Cloud SQL instance 
+
+Go to https://console.cloud.google.com/sql/instances and create an instance.
+
 ## Expose the application to the internet
 
 To expose the application to the internet, you can use the [Gateway](https://gateway-api.sigs.k8s.io/) resource. Or alternatively, you could use an Ingress resource, but this is not documented here.
